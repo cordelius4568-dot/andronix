@@ -26,7 +26,6 @@ import (
 	"github.com/AndronixApp/andronix-distros/internal/proot"
 	"github.com/AndronixApp/andronix-distros/internal/rootfs"
 	"github.com/AndronixApp/andronix-distros/internal/sys"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 	"github.com/AndronixApp/andronix-distros/internal/termux"
 	"github.com/AndronixApp/andronix-distros/internal/ui"
 )
@@ -91,7 +90,6 @@ type source struct {
 // install went when the app asked (see report.go).
 func Install(ctx context.Context, o InstallOpts) error {
 	o.report = newInstallReport(o.Distro, o.Desktop, o.Modded || o.Edition != "")
-	telemetry.Notice()
 	err := install(ctx, o)
 	if err != nil {
 		o.report.err = err
@@ -945,7 +943,6 @@ func install(ctx context.Context, o InstallOpts) error {
 			return err
 		}
 	}
-	telemetry.Send("install_started", rep.ids(map[string]any{"distro": d.ID, "de": de.ID, "modded": o.Modded, "edition": edition}))
 	if err := ui.RunSteps(ctx, steps, lg); err != nil {
 		if ue, ok := err.(*ui.UserError); ok && ue.Log == "" {
 			ue.Log = lg.Path
@@ -1410,9 +1407,9 @@ func mirrorTarball(ctx context.Context, d *conf.Distro, arch sys.Arch, p Paths, 
 	return source{}, false, netx.Unreachable(ctx, gerr)
 }
 
-// pickSource finds the base rootfs: a local file (ANDRONIX_ROOTFS), our
-// mirror's tarball, else the distro's registry image. say (may be nil)
-// shows a progress line.
+// pickSource finds the base rootfs: a local file (ANDRONIX_ROOTFS), else
+// the distro's image pulled from its registry (Docker Hub by default).
+// There is no Andronix mirror. say (may be nil) shows a progress line.
 func pickSource(ctx context.Context, d *conf.Distro, arch sys.Arch, p Paths, lg *Logger, say func(string)) (source, error) {
 	if f := os.Getenv("ANDRONIX_ROOTFS"); f != "" {
 		if _, err := os.Stat(f); err != nil {
@@ -1426,43 +1423,12 @@ func pickSource(ctx context.Context, d *conf.Distro, arch sys.Arch, p Paths, lg 
 		}
 		return s, nil
 	}
-	mode := os.Getenv("ANDRONIX_SOURCE")
-	// tarTransient: our mirror's tarball was skipped only because the network
-	// failed on the way (not a 404 or a missing checksum), so it's worth
-	// another try if the registry fails too (#357).
-	tarTransient := false
-	if mode != "registry" {
-		var s source
-		var ok bool
-		if s, ok, tarTransient = mirrorTarball(ctx, d, arch, p, lg); ok {
-			return s, nil
-		}
-		if mode == "tarball" {
-			return source{}, ui.Errorf("download_not_available", "Download not available", "The "+d.Label()+" download isn't reachable right now.", "Check your connection and try again in a few minutes.")
-		}
-	}
 	a, v := arch.OCI()
 	im, err := oci.Resolve(ctx, d.Image, a, v)
 	lg.Printf("registry %s: %v", d.Image, err)
 	if err != nil {
 		var np *oci.ErrNoPlatform
 		var se *netx.StatusError
-		// #357: Docker Hub blips (auth.docker.io TLS timeouts, a 403/429/5xx)
-		// failed installs outright at "Finding the best download" even for
-		// distros our mirror has. When the mirror was skipped only because
-		// the network failed on the way, try it once more before giving up.
-		if tarTransient && !errors.As(err, &np) && ctx.Err() == nil {
-			lg.Printf("registry failed (%v); trying the Andronix mirror again", err)
-			if say != nil {
-				say("Docker Hub is busy; trying the Andronix mirror again...")
-			}
-			if !sleepCtx(ctx, mirrorRetryWait) {
-				return source{}, ctx.Err()
-			}
-			if s, ok, _ := mirrorTarball(ctx, d, arch, p, lg); ok {
-				return s, nil
-			}
-		}
 		switch {
 		case errors.As(err, &np) && d.UpstreamTarball(string(arch)) != "":
 			// No OCI image for this CPU (Arch Linux ARM): the distro's own tarball.

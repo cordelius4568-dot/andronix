@@ -70,19 +70,3 @@ func TestWithoutUpdateHooks(t *testing.T) {
 		}
 	}
 }
-
-// A result a recovery saved says which one; a failure keeps its own kind.
-func TestPMSavedKind(t *testing.T) {
-	defer func() { pmSaved = "" }()
-	pmSaved = "apt_hook_retried"
-	ok := map[string]any{"ok": true}
-	addPMFailure(ok)
-	if ok["error_kind"] != "apt_hook_retried" {
-		t.Errorf("ok: %v", ok)
-	}
-	fail := map[string]any{"ok": false, "error_class": "network", "error_kind": "network_dns"}
-	addPMFailure(fail)
-	if fail["error_kind"] != "network_dns" {
-		t.Errorf("failed: %v", fail)
-	}
-}

@@ -17,7 +17,6 @@ import (
 	"github.com/AndronixApp/andronix-distros/internal/proot"
 	"github.com/AndronixApp/andronix-distros/internal/rootfs"
 	"github.com/AndronixApp/andronix-distros/internal/sys"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 	"github.com/AndronixApp/andronix-distros/internal/ui"
 )
 
@@ -50,9 +49,6 @@ func Start(name string, asRoot bool, cmd []string) error {
 	// by the stable one next (card #209), and the helper must match the host.
 	rootfs.InstallSelf(in.Rootfs)
 	startSound(context.Background(), len(cmd) == 0 && ui.Interactive)
-	p := map[string]any{"distro": d.ID, "de": in.Get("DE"), "root": asRoot, "command": len(cmd) > 0}
-	telemetry.Send("start", p) // kept for one release next to cli_login (telemetry v2)
-	telemetry.Send("cli_login", p)
 	return in.Target(asRoot).Login(d.Shell, cmd)
 }
 

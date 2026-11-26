@@ -74,12 +74,9 @@ else
     say "Downloading andronix for your phone ($arch)"
     # products-api's resolver first (it can pin or move the download), with
     # a 3 s limit; the answer's sha256 must match. Anything else falls back
-    # to the built-in URL below. t=1 only with telemetry on.
+    # to the built-in URL below.
     if [ -z "${ANDRONIX_DL:-}${ANDRONIX_MIRROR:-}${ANDRONIX_NO_RESOLVE:-}" ] && command -v sha256sum >/dev/null 2>&1; then
-        t="&t=1"
-        { [ -n "${ANDRONIX_NO_TELEMETRY:-}" ] || [ "${DO_NOT_TRACK:-}" = 1 ] ||
-            grep -qx ENABLED=no "${ANDRONIX_HOME:-$HOME/.andronix}/telemetry" 2>/dev/null; } && t=""
-        q="item=bin&arch=$arch&flavor=$os&v=get.sh$t"
+        q="item=bin&arch=$arch&flavor=$os&v=get.sh"
         # api.andronix.app first; products.andronix.xyz only if it can't be
         # reached (curl 22 is an HTTP answer: no second try).
         j=""

@@ -13,7 +13,6 @@ import (
 	"github.com/AndronixApp/andronix-distros/internal/proot"
 	"github.com/AndronixApp/andronix-distros/internal/rootfs"
 	"github.com/AndronixApp/andronix-distros/internal/sys"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 	"github.com/AndronixApp/andronix-distros/internal/ui"
 )
 
@@ -250,12 +249,6 @@ func PackAdd(ctx context.Context, args []string) error {
 	}
 	lg := NewLog("pack")
 	defer lg.Close()
-	telemetry.Notice()
-	started := time.Now()
-	var ids []string
-	for _, p := range todo {
-		ids = append(ids, p.ID)
-	}
 	t, fam := pp.t, pp.fam
 	steps := []ui.Step{{Label: "Refreshing package lists", Run: func(ctx context.Context, r ui.Reporter) error {
 		if err := t.Run(ctx, fam.Update, nil, func(l string) { r.Line(l) }); err != nil {
@@ -291,8 +284,6 @@ func PackAdd(ctx context.Context, args []string) error {
 	}
 	fmt.Println()
 	err = ui.RunSteps(ctx, steps, lg)
-	telemetry.Send("pack_add", map[string]any{"packs": strings.Join(ids, " "), "distro": pp.id, "ok": err == nil,
-		"error_class": telemetry.ErrorClass(err), "duration_ms": time.Since(started).Milliseconds()})
 	if err != nil {
 		if ue, ok := err.(*ui.UserError); ok && ue.Log == "" {
 			ue.Log = lg.Path

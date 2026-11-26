@@ -25,7 +25,6 @@ import (
 	"github.com/AndronixApp/andronix-distros/internal/app"
 	"github.com/AndronixApp/andronix-distros/internal/compat"
 	"github.com/AndronixApp/andronix-distros/internal/sys"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 	"github.com/AndronixApp/andronix-distros/internal/ui"
 )
 
@@ -202,12 +201,6 @@ func main() {
 		}
 		return
 	}
-	// A detached copy posting one telemetry event (telemetry.Send).
-	if len(all) == 2 && all[0] == "__telemetry" {
-		telemetry.Post(all[1])
-		return
-	}
-	telemetry.Init(app.GetPaths().Home, app.Version)
 	if legacy, ok := legacyModded(all); ok {
 		all = legacy
 	}
@@ -234,7 +227,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "--progress json:", jerr)
 			os.Exit(2)
 		}
-		ui.Emit("hello", map[string]any{"v": 1, "installer": app.Version, "host": telemetry.Host(), "command": cmd})
+		ui.Emit("hello", map[string]any{"v": 1, "installer": app.Version, "host": app.Host(), "command": cmd})
 	}
 	if pastedTwice {
 		ui.Note("It looks like the command was pasted twice; running it once.")
@@ -383,21 +376,6 @@ func main() {
 		}
 	case "doctor":
 		err = app.Doctor(ctx, a.arg(0)) // --probe is still accepted: doctor always probes
-	case "telemetry":
-		switch a.arg(0) {
-		case "off":
-			telemetry.SetEnabled(false)
-			ui.OK("Telemetry is off. Nothing is sent.")
-		case "on":
-			telemetry.SetEnabled(true)
-			ui.OK("Telemetry is on: anonymous install events (distro, desktop, result) go to Andronix.")
-		default:
-			if telemetry.Enabled() {
-				ui.Info("Telemetry is on: anonymous install events (distro, desktop, result). Turn off: andronix telemetry off")
-			} else {
-				ui.Info("Telemetry is off. Turn on: andronix telemetry on")
-			}
-		}
 	case "tune":
 		err = app.Tune(a.arg(0), a.flags["profile"])
 	case "session-prep":

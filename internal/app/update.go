@@ -21,7 +21,6 @@ import (
 	"github.com/AndronixApp/andronix-distros/internal/pkgmgr"
 	"github.com/AndronixApp/andronix-distros/internal/rootfs"
 	"github.com/AndronixApp/andronix-distros/internal/sys"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 	"github.com/AndronixApp/andronix-distros/internal/ui"
 )
 
@@ -40,14 +39,6 @@ type UpdateOpts struct {
 // Update is `andronix update [<distro>]`: the andronix binary itself,
 // then each distro's packages, then Modded delta updates.
 func Update(ctx context.Context, o UpdateOpts) (err error) {
-	telemetry.Notice()
-	started, n := time.Now(), 0
-	defer func() {
-		props := map[string]any{"ok": err == nil, "distros": n, "self_only": o.SelfOnly,
-			"error_class": telemetry.ErrorClass(err), "duration_ms": time.Since(started).Milliseconds()}
-		addPMFailure(props)
-		telemetry.Send("update", props)
-	}()
 	fmt.Print(ui.Banner("Linux on Android " + ui.GSep + " " + VersionLabel()))
 	lg := NewLog("update")
 	defer lg.Close()
@@ -87,7 +78,6 @@ func Update(ctx context.Context, o UpdateOpts) (err error) {
 		defer unlock()
 	}
 
-	n = len(targets)
 	var steps []ui.Step
 	// The standalone app ships andronix in its APK: it updates with the app.
 	if !o.NoSelf && !sys.Standalone() {

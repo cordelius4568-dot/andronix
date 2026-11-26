@@ -15,7 +15,6 @@ import (
 	"github.com/AndronixApp/andronix-distros/internal/proot"
 	"github.com/AndronixApp/andronix-distros/internal/rootfs"
 	"github.com/AndronixApp/andronix-distros/internal/sys"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 	"github.com/AndronixApp/andronix-distros/internal/termux"
 	"github.com/AndronixApp/andronix-distros/internal/ui"
 )
@@ -148,10 +147,6 @@ func (c *compatRun) probe(ctx context.Context, t *proot.Target, lg *Logger) erro
 	c.facts.Probe.Syscalls = res
 	c.facts.Probe.Save(GetPaths().Home)
 	c.replan()
-	p := c.facts.Probe
-	telemetry.Send("compat", map[string]any{"probe": p.Summary(), "kernel": p.KernelMajorMinor(), "sdk": p.SDK, "rom": p.ROM,
-		"phantom": p.Phantom, "ram": p.RAMBucket(), "termux": p.Termux, "rules": strings.Join(c.plan.IDs, " "),
-		"distro": c.facts.Distro, "de": c.facts.DE})
 	return nil
 }
 

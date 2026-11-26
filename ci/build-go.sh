@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build andronix for every CPU Termux runs on, two builds per CPU (each
+# Build andronix for aarch64 only, two builds (android + linux) (each
 # written under a temporary name and renamed: dist/ files are never
 # rewritten in place, other checkouts may hard-link them):
 #
@@ -32,14 +32,8 @@ if git rev-parse --git-dir >/dev/null 2>&1 && [ -n "$(git status --porcelain --u
 fi
 version=${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}
 ldflags="-s -w -X github.com/AndronixApp/andronix-distros/internal/app.Version=$version"
-# Telemetry only from release builds of released versions (owner rule):
-# rc, dev and local builds send nothing (internal/telemetry production()).
-case $version in
-    *[!0-9.]*|.*|*.|*..*) ;;
-    *.*.*) ldflags="$ldflags -X github.com/AndronixApp/andronix-distros/internal/telemetry.releaseBuild=1" ;;
-esac
 api=24 # Android 7, the oldest Termux supports
-cpus="aarch64:arm64: arm:arm:7 i686:386: x86_64:amd64:"
+cpus="aarch64:arm64:"
 mkdir -p dist selfbin
 
 size() { printf '%-32s %s\n' "$1" "$(du -h "$1" | cut -f1)"; }
@@ -65,9 +59,6 @@ ndk_builds() {
     local tc=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt
     tc=$(echo "$tc"/*/bin)
     android aarch64 arm64 "" "$tc/aarch64-linux-android$api-clang"
-    android arm arm 7 "$tc/armv7a-linux-androideabi$api-clang"
-    android i686 386 "" "$tc/i686-linux-android$api-clang"
-    android x86_64 amd64 "" "$tc/x86_64-linux-android$api-clang"
 }
 
 if [ "${1:-}" = android-cgo ]; then
@@ -75,7 +66,7 @@ if [ "${1:-}" = android-cgo ]; then
     exit 0
 fi
 
-rm -f selfbin/andronix-linux.gz dist/andronix-android-* dist/andronix-aarch64 dist/andronix-arm dist/andronix-i686 dist/andronix-x86_64
+rm -f selfbin/andronix-linux.gz dist/andronix-android-* dist/andronix-aarch64
 for t in $cpus; do
     IFS=: read -r name goarch goarm <<<"$t"
     CGO_ENABLED=0 GOOS=linux GOARCH=$goarch GOARM=$goarm \
@@ -87,7 +78,7 @@ if [ -n "${ANDROID_NDK_HOME:-}" ]; then
     ndk_builds
 elif [ -n "${NO_NDK:-}" ]; then
     android aarch64 arm64 ""
-    echo "NO_NDK: aarch64 without cgo (Go's resolver only); skipping the arm, i686 and x86_64 android builds" >&2
+    echo "NO_NDK: aarch64 without cgo (Go's resolver only)" >&2
 else
     docker build -q -t andronix-build -f ci/build.Dockerfile ci >/dev/null ||
         docker build -t andronix-build -f ci/build.Dockerfile ci # again, to show why
@@ -100,9 +91,9 @@ else
         docker run --rm -i -e VERSION="$version" \
             -v andronix-gocache:/root/.cache/go-build -v andronix-gomod:/go/pkg/mod \
             andronix-build sh -c 'mkdir -p /src && cd /src && tar --warning=no-unknown-keyword -xf - && ci/build-go.sh android-cgo >&2 &&
-                tar -cf - dist/andronix-android-aarch64 dist/andronix-android-arm dist/andronix-android-i686 dist/andronix-android-x86_64' |
+                tar -cf - dist/andronix-android-aarch64' |
         tar -xf -
-    for name in aarch64 arm i686 x86_64; do
+    for name in aarch64; do
         [ -s "dist/andronix-android-$name" ] || { echo "the NDK build of andronix-android-$name failed" >&2; exit 1; }
         cp "dist/andronix-android-$name" "dist/.new-andronix-$name" && mv -f "dist/.new-andronix-$name" "dist/andronix-$name"
     done

@@ -16,7 +16,6 @@ import (
 	"github.com/AndronixApp/andronix-distros/internal/pkgmgr"
 	"github.com/AndronixApp/andronix-distros/internal/rootfs"
 	"github.com/AndronixApp/andronix-distros/internal/sys"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 	"github.com/AndronixApp/andronix-distros/internal/ui"
 )
 
@@ -37,15 +36,9 @@ func DisplayHost(ctx context.Context, name, size, maxSize, dpi, gpuMode, gpuSock
 		return err
 	}
 	in := Open(d)
-	// The start event: ok with the time to ready, or the failure's class.
-	t0, up, sound := time.Now(), false, false
+	t0, sound := time.Now(), false
 	sendTrace("host-start", "cmd=display")
-	gpu, gpuOK := displayGPU{}, false
-	defer func() {
-		if !up && err != nil {
-			sendDisplayStart(d, in, "display", t0, false, gpu.name(), false, err)
-		}
-	}()
+	gpu := displayGPU{}
 	if !in.Installed() {
 		return ui.Errorf("not_installed", d.Label()+" isn't installed", "There's no desktop to show yet.", "Install it first: andronix install "+d.ID+" --de xfce")
 	}
@@ -219,7 +212,6 @@ func DisplayHost(ctx context.Context, name, size, maxSize, dpi, gpuMode, gpuSock
 		if gpuEnv != "" {
 			status, gpuReason = displayGPUCheck(ctx, in, num, gpuEnv)
 		}
-		gpuOK = status == "ok"
 		fmt.Println(strings.TrimSpace("GPU " + gpu.Mode + " " + status + " " + gpuReason))
 		lg.Printf("display: GPU %s %s %s", gpu.Mode, status, gpuReason)
 	}
@@ -229,8 +221,6 @@ func DisplayHost(ctx context.Context, name, size, maxSize, dpi, gpuMode, gpuSock
 		sound = false
 	}
 	sendTrace("host-sound-ready", "sound="+strconv.FormatBool(sound))
-	up = true
-	sendDisplayStart(d, in, "display", t0, sound, gpu.name(), gpuOK, nil)
 	safeTag := ""
 	if safe {
 		fmt.Printf("SAFE %s\n", strings.Join(safeKeys, ","))
@@ -303,26 +293,4 @@ func ensureXvfb(ctx context.Context, in *Inst, d *conf.Distro, lg *Logger) error
 		return ui.Errorf("couldn_t_install_xvfb", "Couldn't install Xvfb", strings.Join(tail, " / "), "Check your internet, then run andronix display "+d.ID+" again.")
 	}
 	return nil
-}
-
-// sendDisplayStart is the start event of the app's display path (display
-// or vnc): ok and the time to the ready line, whether sound came up, or
-// the failure's class. gpu: "virgl" or "off" (display only; "" leaves it
-// out), and gpu_ok when it's on (both need products-api's allow-list).
-func sendDisplayStart(d *conf.Distro, in *Inst, mode string, t0 time.Time, sound bool, gpu string, gpuOK bool, err error) {
-	p := map[string]any{"distro": d.ID, "de": in.Get("DE"), "display": mode, "ok": err == nil,
-		"duration_ms": time.Since(t0).Milliseconds()}
-	if gpu != "" {
-		p["gpu"] = gpu
-	}
-	if gpu != "" && gpu != "off" {
-		p["gpu_ok"] = gpuOK
-	}
-	if err == nil {
-		p["sound"] = sound
-	} else {
-		p["error_class"] = telemetry.ErrorClass(err)
-	}
-	telemetry.Send("start", p)
-	desktopStart(in, mode, p)
 }

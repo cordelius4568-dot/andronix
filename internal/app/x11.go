@@ -15,13 +15,11 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/AndronixApp/andronix-distros/internal/conf"
 	"github.com/AndronixApp/andronix-distros/internal/rootfs"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 	"github.com/AndronixApp/andronix-distros/internal/termux"
 	"github.com/AndronixApp/andronix-distros/internal/ui"
 )
@@ -268,44 +266,13 @@ func Desktop(ctx context.Context, name string, x11 DesktopX11) error {
 	if len(saved) == 0 {
 		ui.Note("Only a black screen with a cursor? Run: andronix desktop stop, then andronix desktop " + d.ID + " --legacy-drawing (Andronix remembers it).")
 	}
-	// The start event goes out 20 s in, with whether the screen drew
-	// (drew.go), or when the session ends before that.
-	props := map[string]any{"distro": d.ID, "de": de.ID, "x11_args": termux.X11ArgsLabel(saved), "kernel": kernelMajorMinor()}
-	var sendOnce sync.Once
-	sendStart := func(drew *bool) {
-		sendOnce.Do(func() {
-			if drew != nil {
-				props["drew"] = *drew
-			}
-			telemetry.Send("start", props)
-			desktopStart(in, "x11", props)
-		})
-	}
 	if n := termux.PhantomNote(); n != "" {
 		ui.Note(n)
 	}
 	fmt.Println()
 
 	done := make(chan error, 1)
-	ended := make(chan struct{})
-	go func() { err := c.Wait(); close(ended); done <- err }()
-	go func() {
-		select {
-		case <-ended:
-			return
-		case <-time.After(20 * time.Second):
-		}
-		if !telemetry.Enabled() {
-			sendStart(nil)
-			return
-		}
-		if drew, ok := screenDrew(termux.X11Socket(termux.X11Display)); ok {
-			termux.Logf("x11: screen drew=%v", drew)
-			sendStart(&drew)
-		} else {
-			sendStart(nil)
-		}
-	}()
+	go func() { done <- c.Wait() }()
 	var werr error
 	select {
 	case werr = <-done:
@@ -313,7 +280,6 @@ func Desktop(ctx context.Context, name string, x11 DesktopX11) error {
 		go stopSession(run.Proot)
 		werr = <-done
 	}
-	sendStart(nil) // ended within 20 s
 	// `andronix desktop stop` removes the state file first.
 	_, statErr := os.Stat(x11State())
 	requested := ctx.Err() != nil || os.IsNotExist(statErr)

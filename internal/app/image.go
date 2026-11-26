@@ -57,7 +57,7 @@ func imageName(d *conf.Distro, de *conf.Desktop, arch sys.Arch) string {
 // Editions, Modded and Classic have their own images; --de none needs
 // none; an explicit ANDRONIX_ROOTFS means "this base", as before.
 func imageEligible(o InstallOpts, edition string, de *conf.Desktop) bool {
-	return !o.ImageBuild && edition == "" && !o.Modded && !de.None() && os.Getenv("ANDRONIX_ROOTFS") == ""
+	return false // ready-made images came from the Andronix bucket; images are pulled from the registry only
 }
 
 // imageMeta reads the unpacked size from a .meta (key=value lines;

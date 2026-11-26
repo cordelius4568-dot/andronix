@@ -12,7 +12,6 @@ import (
 
 	"github.com/AndronixApp/andronix-distros/internal/netx"
 	"github.com/AndronixApp/andronix-distros/internal/sys"
-	"github.com/AndronixApp/andronix-distros/internal/telemetry"
 )
 
 // Downloads go through products-api's resolver first, so the API can pin,
@@ -23,7 +22,7 @@ import (
 //
 // Any failure (3 s timeout, 400/404/503, a bad answer) falls back to the
 // built-in dl.andronix.app URL, so free installs never depend on the API.
-// Whatever URL is used, its sha256 is checked. t=1 only with telemetry on.
+// Whatever URL is used, its sha256 is checked.
 // ANDRONIX_MIRROR or ANDRONIX_NO_RESOLVE=1 skip it (tests, mirrors).
 
 // Resolved is the resolver's answer.
@@ -53,9 +52,6 @@ func resolveQuery(ctx context.Context, item string, q url.Values) (*Resolved, er
 	q.Set("item", item)
 	q.Set("arch", string(sys.DetectArch()))
 	q.Set("v", Version)
-	if telemetry.Enabled() {
-		q.Set("t", "1")
-	}
 	// 3 s per address; the next one only when this one can't be reached.
 	var b []byte
 	var err error

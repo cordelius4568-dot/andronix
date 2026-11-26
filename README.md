@@ -101,7 +101,6 @@ andronix tune <distro> --profile light|balanced
 andronix doctor                              what your phone supports, and the fixes applied
 andronix report                              send us a problem report
 andronix remove <distro>
-andronix telemetry off|on|status
 ```
 
 `andronix help` lists everything. Full reference: [the andronix command](https://docs.andronix.app/reference/andronix-command).
@@ -151,11 +150,11 @@ tests/screens.sh debian xfce      # install a desktop and take screenshots
 ci/build-rootfs.sh debian aarch64 # a clean rootfs tarball
 ```
 
-The test box turns telemetry off (`ANDRONIX_NO_TELEMETRY=1`). `tests/emulator/` runs the installer inside the real Termux app on Android emulators.
+`tests/emulator/` runs the installer inside the real Termux app on Android emulators.
 
 ## Privacy
 
-`andronix` sends anonymous install events: distro, desktop, CPU, Android version, result, and a random id. It never sends names, emails, paths or commands. A notice shows the first time. Turn them off with `andronix telemetry off` or `ANDRONIX_NO_TELEMETRY=1`. The app's policy: [andronix.app/privacy](https://andronix.app/privacy).
+`andronix` has no telemetry: it sends no events and keeps no install id. Distro images are pulled straight from their registry (Docker Hub by default).
 
 ## Modded editions
 

@@ -66,7 +66,7 @@ func TestImageEligible(t *testing.T) {
 		de      *conf.Desktop
 		want    bool
 	}{
-		{"free xfce", InstallOpts{}, "", de, true},
+		{"free xfce (no bucket images any more)", InstallOpts{}, "", de, false},
 		{"modded", InstallOpts{Modded: true}, "debian-xfce", de, false},
 		{"edition (Classic)", InstallOpts{}, "legacy-debian", de, false},
 		{"command line only", InstallOpts{}, "", none, false},

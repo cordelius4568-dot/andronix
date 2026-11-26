@@ -38,14 +38,8 @@ func VNCHost(ctx context.Context, name, port, size, dpi string, unix bool) (err 
 		return err
 	}
 	in := Open(d)
-	// The start event: ok with the time to ready, or the failure's class.
-	t0, up, sound := time.Now(), false, false
+	t0, sound := time.Now(), false
 	sendTrace("host-start", "cmd=vnc")
-	defer func() {
-		if !up && err != nil {
-			sendDisplayStart(d, in, "vnc", t0, false, "", false, err)
-		}
-	}()
 	if !in.Installed() {
 		return ui.Errorf("not_installed", d.Label()+" isn't installed", "There's no desktop to show yet.", "Install it first: andronix install "+d.ID+" --de xfce")
 	}
@@ -207,8 +201,6 @@ while [ -e /tmp/.X%d-lock ]; do sleep 3; done`, vncEnv, size, num, num)
 		lg.Printf("sound: no PCM socket; the desktop runs without sound")
 		sound = false
 	}
-	up = true
-	sendDisplayStart(d, in, "vnc", t0, sound, "", false, nil)
 	traceDone("host-vnc-ready", t0)
 	if unix {
 		fmt.Printf("VNC ready unix:%s\n", addr)
